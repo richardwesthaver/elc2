@@ -1,0 +1,3 @@
+#+TITLE: el-c2i
+#+DESCRIPTION: Emacs Lisp C2 Interface
+#+AUTHOR: ellis

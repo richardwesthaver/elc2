@@ -1,0 +1,13 @@
+{
+  "name": "el_web",
+  "collaborators": [
+    "ellis <ellis@rwest.io>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "el_web_bg.wasm",
+    "el_web.js"
+  ],
+  "module": "el_web.js",
+  "sideEffects": false
+}

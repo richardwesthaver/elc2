@@ -1,0 +1,15 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]
+ 
+
+[dependencies]
+el = { path = "../el-c2i" }
+wasm-bindgen = "0.2"
