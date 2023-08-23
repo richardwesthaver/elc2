@@ -1,3 +1,3 @@
-#+TITLE: el-c2i
-#+DESCRIPTION: Emacs Lisp C2 Interface
+#+TITLE: elc2
+#+DESCRIPTION: Emacs Lisp C2
 #+AUTHOR: ellis

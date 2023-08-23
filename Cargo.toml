@@ -1,27 +1,31 @@
 [package]
-name = "el-c2i"
+name = "elc2"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "elprox"
+name = "elc2"
 path = "src/main.rs"
 
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = ["proto"]
+sql = ["sqlx"]
+auth = ["oauth2"]
 [dependencies]
-proto = { path = "../proto" }
+proto = { path = "../rwest_io/proto",optional=true }
 clap = { version = "3.2.15", features = ["derive", "env"] }
 axum = { version = "0.5.13", features = ["headers"] }
-axum-extra = { version = "0.3.6", features = ["spa"] }
+axum-extra = { version = "0.3.6" }
 tower-http = { version = "0.3.0", features = ["fs", "trace"] }
 headers = "0.3"
 http = "0.2"
-oauth2 = "4.1"
+oauth2 = { version = "4.1", optional = true }
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "json"] }
 serde = { version = "1.0.140", features = ["derive"] }
-sqlx = { version = "0.6.0", features = ["runtime-tokio-rustls", "any", "uuid", "chrono", "macros", "postgres"] }
+sqlx = { version = "0.6.0", features = ["runtime-tokio-rustls", "any", "uuid", "chrono", "macros", "postgres"], optional = true }
 tokio = { version = "1.20.1", features = ["rt", "rt-multi-thread", "time", "net", "macros"] }
 tracing = "0.1.35"
 tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }

@@ -1,0 +1,4 @@
+.*[.](fasl|lock|elc|eln|scratch)$
+.*(target|dist|node_modules|target-trunk|bin)/.*
+.*(Cargo.lock|package-lock.json)$
+.*/(scratch|stash)/.*$

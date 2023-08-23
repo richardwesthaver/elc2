@@ -1,4 +1,4 @@
-;;; elsrv.el --- remote execution of elisp -*- lexical-binding: t; -*-
+;;; elc2.el --- remote execution of elisp -*- lexical-binding: t; -*-
 ;; Copyright (C) 2021  ellis
 ;; 
 ;; Author: ellis
@@ -24,42 +24,42 @@
 ;; 
 ;;; Code:
 ;;;; Custom
-(defgroup elsrv nil
+(defgroup elc2 nil
   "elisp server")
 
-(defcustom elsrv-dir "~/elsrv" "elsrv directory."
-  :group 'elsrv)
+(defcustom elc2-dir "~/elc2" "elc2 directory."
+  :group 'elc2)
 
-(defcustom elsrv-after-make-frame-hook nil
-  "Hook run when elsrv creates a client frame.
+(defcustom elc2-after-make-frame-hook nil
+  "Hook run when elc2 creates a client frame.
 The created frame is selected when the hook is called."
   :type 'hook
-  :group 'elsrv)
+  :group 'elc2)
 
-(defcustom elsrv-done-hook nil
-  "Hook run when done editing a buffer with elsrv."
+(defcustom elc2-done-hook nil
+  "Hook run when done editing a buffer with elc2."
   :type 'hook
-  :group 'elsrv)
+  :group 'elc2)
 
-(defcustom elsrv-port 62824
-  "port of the elsrv broadcaster"
-  :group 'elsrv)
+(defcustom elc2-port 62824
+  "port of the elc2 broadcaster"
+  :group 'elc2)
 
-(defvar elsrv-process nil
-  "The elsrv process handle.")
+(defvar elc2-process nil
+  "The elc2 process handle.")
 
-(defvar elsrv-clients nil
-  "List of current elsrv clients.
+(defvar elc2-clients nil
+  "List of current elc2 clients.
 Each element is a process.")
 
 ;;;; Bindat
-(setq elsrv-header-bindat-spec
+(setq elc2-header-bindat-spec
       '((dest-ip   ip)
         (dest-port u16)
         (src-ip    ip)
         (src-port  u16)))
 
-(setq elsrv-body-bindat-spec
+(setq elc2-body-bindat-spec
       '((type      u8)
         (opcode    u8)
         (length    u16)  ; network byte order
@@ -67,7 +67,7 @@ Each element is a process.")
         (data      vec (length))
         (align     4)))
 
-(setq elsrv-packet-bindat-spec
+(setq elc2-packet-bindat-spec
       '((header    struct header-spec)
         (counters  vec 2 u32r)   ; little endian order
         (items     u8)
@@ -75,10 +75,10 @@ Each element is a process.")
         (item      repeat (items)
                    (struct data-spec))))
 
-(defun elsrv-insert-string (string)
+(defun elc2-insert-string (string)
   (insert string 0 (make-string (- 3 (% (length string) 4)) 0)))
 
-(defun elsrv-insert-int32 (value)
+(defun elc2-insert-int32 (value)
   (let (bytes)
     (dotimes (i 4)
       (push (% value 256) bytes)
@@ -86,7 +86,7 @@ Each element is a process.")
     (dolist (byte bytes)
       (insert byte))))
 
-(defun elsrv-insert-float32 (value)
+(defun elc2-insert-float32 (value)
   (let (s (e 0) f)
     (cond
      ((string= (format "%f" value) (format "%f" -0.0))
@@ -112,21 +112,21 @@ Each element is a process.")
 	    (lsh (logand f #XFF00) -8)
 	    (logand f #XFF))))
 
-(defun elsrv-read-string ()
+(defun elc2-read-string ()
   (let ((pos (point)) string)
     (while (not (= (following-char) 0)) (forward-char 1))
     (setq string (buffer-substring-no-properties pos (point)))
     (forward-char (- 4 (% (length string) 4)))
     string))
 
-(defun elsrv-read-int32 ()
+(defun elc2-read-int32 ()
   (let ((value 0))
     (dotimes (i 4)
       (setq value (logior (* value 256) (following-char)))
       (forward-char 1))
     value))
 
-(defun elsrv-read-float32 ()
+(defun elc2-read-float32 ()
   (let ((s (lsh (logand (following-char) #X80) -7))
 	(e (+ (lsh (logand (following-char) #X7F) 1)
 	      (lsh (logand (progn (forward-char) (following-char)) #X80) -7)))
@@ -157,83 +157,83 @@ Each element is a process.")
   (featurep 'make-network-process '(:type datagram)))
 
 ;;;; Process
-(defun elsrv-make-client (host port)
+(defun elc2-make-client (host port)
   (make-network-process
-   :name "elsrv-client"
+   :name "elc2-client"
    :coding 'binary
    :host host
    :service port
    :type 'datagram
    :nowait t))
 
-(defun elsrv-sentinel (proc msg)
+(defun elc2-sentinel (proc msg)
   (when (string= msg "connection broken by remote peer\n")
-    (setq elsrv-clients (assq-delete-all proc elsrv-clients))
-    (elsrv-log (format "client %s has quit" proc))))
+    (setq elc2-clients (assq-delete-all proc elc2-clients))
+    (elc2-log (format "client %s has quit" proc))))
 
 ;;from server.el
-(defun elsrv-log (string &optional client)
-  "If a *elsrv* buffer exists, write STRING to it for logging purposes."
-  (if (get-buffer "*elsrv*")
-      (with-current-buffer "*elsrv*"
+(defun elc2-log (string &optional client)
+  "If a *elc2* buffer exists, write STRING to it for logging purposes."
+  (if (get-buffer "*elc2*")
+      (with-current-buffer "*elc2*"
         (goto-char (point-max))
         (insert (if client (format "<%s>: " (format-network-address (process-datagram-address client))))
                 string)
         (or (bolp) (newline)))))
 
 ;;;###autoload
-(defun elsrv-start nil
-  "start elsrv over udp"
+(defun elc2-start nil
+  "start elc2 over udp"
   (interactive)
-  (unless (process-status "elsrv")
-    (make-network-process :name "elsrv"
-			  :buffer "*elsrv*"
+  (unless (process-status "elc2")
+    (make-network-process :name "elc2"
+			  :buffer "*elc2*"
 			  :family 'ipv4
-			  :service elsrv-port
+			  :service elc2-port
 			  :type 'datagram
 			  :coding 'binary
-			  :sentinel 'elsrv-sentinel
-			  :filter 'elsrv-filter
+			  :sentinel 'elc2-sentinel
+			  :filter 'elc2-filter
 			  :server t
 			  :broadcast t) 
-    (setq elsrv-clients '())
+    (setq elc2-clients '())
 
     ;; setup additional filters
-    (add-function :after (process-filter (get-process "elsrv")) #'elsrv-eval-response-filter))
-  (message "elsrv: ONLINE"))
+    (add-function :after (process-filter (get-process "elc2")) #'elc2-eval-response-filter))
+  (message "elc2: ONLINE"))
 
 ;;;###autoload
-(defun elsrv-stop ()
-  "stop the elsrv server."
+(defun elc2-stop ()
+  "stop the elc2 server."
   (interactive)
-  (while  elsrv-clients
-    (delete-process (car (car elsrv-clients)))
-    (setq elsrv-clients (cdr elsrv-clients)))
-  (with-current-buffer "*elsrv*"
+  (while  elc2-clients
+    (delete-process (car (car elc2-clients)))
+    (setq elc2-clients (cdr elc2-clients)))
+  (with-current-buffer "*elc2*"
     (let ((proc (get-buffer-process (current-buffer))))
       (if proc (delete-process proc)))
     (set-buffer-modified-p nil)
     (kill-this-buffer))
-  (message "elsrv stopped"))
+  (message "elc2 stopped"))
 
-(defun elsrv-filter (proc string)   
-  (let ((pending (assoc proc elsrv-clients))
+(defun elc2-filter (proc string)   
+  (let ((pending (assoc proc elc2-clients))
         message
         index)
     ;;create entry if required
     (unless pending
-      (setq elsrv-clients (cons (cons proc "") elsrv-clients))
-      (setq pending  (assoc proc elsrv-clients)))
+      (setq elc2-clients (cons (cons proc "") elc2-clients))
+      (setq pending  (assoc proc elc2-clients)))
     (setq message (concat (cdr pending) string))
     (while (setq index (string-match "\n" message))
       (setq index (1+ index))
 ;      (process-send-string proc (substring message 0 index))
-      (elsrv-log  (substring message 0 index) proc)
+      (elc2-log  (substring message 0 index) proc)
       (setq message (substring message index)))
     (setcdr pending message)))
 
-(defun elsrv-packet-filter (proc string)
-  "process-filter for decoding 'elsrv-packet-bindat-spec'"
+(defun elc2-packet-filter (proc string)
+  "process-filter for decoding 'elc2-packet-bindat-spec'"
   (bindat-unpack packet-spec string))
 
 (defun ordinary-insertion-filter (proc string)
@@ -248,21 +248,21 @@ Each element is a process.")
           (set-marker (process-mark proc) (point)))
         (if moving (goto-char (process-mark proc)))))))
 
-(defun elsrv-eval-response-filter (proc string)
+(defun elc2-eval-response-filter (proc string)
   "execute STRING from PROC."
   (let ((msg (car (read-from-string string))))
     (process-send-string proc (concat (format "%s" (ignore-errors "error: %S" (eval msg))) "\n"))))
 
 ;;;; Signals
 ;;;###autoload
-(defun elsrv-shutdown ()
+(defun elc2-shutdown ()
   "Save buffers, Quit, and Shutdown (kill) server"
   (interactive)
   (save-some-buffers)
   (kill-emacs))
 
 ;;;###autoload
-(defun elsrv-restart ()
+(defun elc2-restart ()
   "Handler for SIGUSR1 signal, to (re)start an emacs server.
 
 Can be tested from within emacs with:
@@ -277,8 +277,8 @@ $ emacsclient -c
   (server-start)
   )
 
-(define-key special-event-map [sigusr1] 'elsrv-restart)
+(define-key special-event-map [sigusr1] 'elc2-restart)
 
 ;;;; provide
-(provide 'elsrv)
-;;; elsrv.el ends here
+(provide 'elc2)
+;;; elc2.el ends here

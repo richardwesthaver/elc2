@@ -1,4 +1,4 @@
-//! el-c2i --- Emacs Lisp C2 Interface
+//! elc2 --- Emacs Lisp C2
 pub mod cfg;
 pub mod api;
 pub mod app;

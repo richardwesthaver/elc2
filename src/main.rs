@@ -1,4 +1,4 @@
-use el::{
+use elc2::{
   cfg::Cfg,
   app::map_org_dir,
   api::index::index,
@@ -6,6 +6,7 @@ use el::{
 
 use clap::Parser;
 use anyhow::Result;
+
 use proto::{
   UNAUTH_DEFAULT,
   error::internal_error,
@@ -26,7 +27,7 @@ async fn main() -> Result<()> {
   tracing_subscriber::registry()
     .with(tracing_subscriber::EnvFilter::new(
       std::env::var("RUST_LOG")
-        .unwrap_or_else(|_| "elsrv=debug,tower_http=debug".into()),
+        .unwrap_or_else(|_| "elc2=debug,tower_http=debug".into()),
         ))
     .with(tracing_subscriber::fmt::layer())
     .init();
@@ -45,23 +46,28 @@ async fn main() -> Result<()> {
   println!("/org -- {}", &org_path.display());
   println!("org files found:");
   println!("{}", &print_files);
+  // #[cfg(feature="auth")]
   let oauth_store = MemoryStore::new();
   let mut app = Router::new()
     .route("/", get(index))
     .route("/org", get(|user: Option<User>| async
 		       {
+			 #[cfg(feature="auth")]
 			 match user {
 			   Some(_u) => print_files,
 			   None => UNAUTH_DEFAULT.to_string(),
 			 }
+			 #[cfg(not(feature="auth"))]
+			 print_files
 		       }
     ))
-//    .fallback(get_service(ServeDir::new(org_path)).handle_error(internal_error))
-    .layer(TraceLayer::new_for_http())
-    .layer(Extension(oauth_store));
+    .layer(TraceLayer::new_for_http());
+  // #[cfg(feature="auth")]
+  let mut app = app.layer(Extension(oauth_store));
+
 
   for i in org_files.iter() {
-    app = app.route(&format!("{}",i.strip_prefix("..").unwrap()), get_service(ServeFile::new(i)).handle_error(internal_error));
+    app = app.route(&format!("{}",i.strip_prefix("..").unwrap_or(i)), get_service(ServeFile::new(i)).handle_error(internal_error));
   }
   axum::Server::bind(&addr)
     .serve(app.into_make_service())

@@ -1,5 +1,7 @@
 use axum::{Router, routing::get, response::{Html, IntoResponse}};
-use proto::{UNAUTH_DEFAULT ,auth::User};
+#[cfg(feature="auth")]
+use proto::UNAUTH_DEFAULT;
+use proto::auth::User;
 
 pub fn router() -> Router {
   Router::new()
@@ -9,13 +11,20 @@ pub fn router() -> Router {
 // Session is optional
 pub async fn index(user: Option<User>) -> impl IntoResponse {
     match user {
+      #[cfg(feature="auth")]
       Some(u) => Html(format!(
         "operator: {:?}
 /el -- execute elisp
 /b -- view buffers",
         u,
       )),
+      #[cfg(feature="auth")]
       None => Html(UNAUTH_DEFAULT.to_string()),
+      #[cfg(not(feature="auth"))]
+      _ => Html("operator: nil
+/el -- execute elisp
+/b -- view buffers",
+      )
     }
 }
 
@@ -27,7 +36,11 @@ pub async fn index(user: Option<User>) -> impl IntoResponse {
 pub async fn org_index(
   user: Option<User>) -> impl IntoResponse {
   match user {
+    #[cfg(feature="auth")]
     Some(_) => "".to_string(),
+    #[cfg(feature="auth")]
     None => UNAUTH_DEFAULT.to_string(),
+    #[cfg(not(feature="auth"))]
+    _ => "org_index".to_string(),
   }
 }
